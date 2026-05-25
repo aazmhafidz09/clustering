@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silhouette Coefficient Playground (Simple Light)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>canvas { touch-action: none; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-6">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-6 border-b border-gray-200 pb-4">
+            <h1 class="text-2xl font-bold text-gray-900">Silhouette Coefficient Playground</h1>
+            <p class="text-sm text-gray-500 mt-1">
+                Geser titik data untuk melihat perubahan <span class="text-amber-600 font-semibold">Silhouette Score</span> secara langsung.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-7 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Ruang Cluster (2D)</span>
+                    <button onclick="resetData()" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-medium rounded transition">
+                        Reset Posisi
+                    </button>
+                </div>
+                <div class="bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                    <canvas id="clusterCanvas" width="600" height="420" class="w-full h-auto cursor-crosshair"></canvas>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-2 italic">
+                    *Tips: **Drag** untuk geser titik. **Double-click** titik untuk menukar kelompok clusternya secara paksa.
+                </p>
+            </div>
+
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-gray-400">Rata-rata Skor</p>
+                        <h2 id="globalScore" class="text-4xl font-black text-amber-500 mt-1">0.00</h2>
+                    </div>
+                    <div class="text-right text-[11px] text-gray-400 font-mono leading-tight">
+                        Rentang Score:<br>
+                        <span class="text-emerald-600">+1.0 (Ideal)</span><br>
+                        <span class="text-red-500">-1.0 (Salah)</span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Live Silhouette Plot</h3>
+                    <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
+                        <canvas id="silhouetteCanvas" width="400" height="180" class="w-full h-auto"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex-1 overflow-y-auto max-h-[220px]">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Tabel Matematika Live</h3>
+                    <div id="breakdownPanel" class="text-xs text-gray-600">
+                        </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const cCanvas = document.getElementById('clusterCanvas');
+        const cCtx = cCanvas.getContext('2d');
+        const sCanvas = document.getElementById('silhouetteCanvas');
+        const sCtx = sCanvas.getContext('2d');
+
+        // Palet Warna Cerah Pastel
+        const clusterColors = {
+            1: { dot: '#3b82f6', fill: 'rgba(59, 130, 246, 0.6)', text: 'text-blue-600' },   // Biru Cerah
+            2: { dot: '#ec4899', fill: 'rgba(236, 72, 153, 0.6)', text: 'text-pink-600' }   // Pink Cerah
+        };
+
+        let points = [];
+        let draggedPoint = null;
+
+        function initData() {
+            points = [
+                { id: 'A', x: 120, y: 140, cluster: 1 },
+                { id: 'B', x: 160, y: 110, cluster: 1 },
+                { id: 'C', x: 130, y: 180, cluster: 1 },
+                { id: 'D', x: 460, y: 280, cluster: 2 },
+                { id: 'E', x: 490, y: 320, cluster: 2 },
+                { id: 'F', x: 420, y: 310, cluster: 2 },
+                { id: 'G', x: 290, y: 210, cluster: 2 } // Titik perbatasan/outlier
+            ];
+        }
+
+        // Hitung Rumus Silhouette
+        function calculateSilhouette() {
+            if (points.length <= 1) return;
+
+            points.forEach(p => {
+                // a(i) - Jarak internal
+                let sameCluster = points.filter(o => o.cluster === p.cluster && o !== p);
+                let a = 0;
+                if (sameCluster.length > 0) {
+                    let totalA = sameCluster.reduce((sum, o) => sum + Math.sqrt(Math.pow(p.x-o.x, 2) + Math.pow(p.y-o.y, 2)), 0);
+                    a = totalA / sameCluster.length;
+                }
+
+                // b(i) - Jarak ke cluster tetangga
+                let otherClusterIds = [...new Set(points.map(o => o.cluster).filter(c => c !== p.cluster))];
+                let b = Infinity;
+
+                otherClusterIds.forEach(cId => {
+                    let diffCluster = points.filter(o => o.cluster === cId);
+                    if (diffCluster.length > 0) {
+                        let totalB = diffCluster.reduce((sum, o) => sum + Math.sqrt(Math.pow(p.x-o.x, 2) + Math.pow(p.y-o.y, 2)), 0);
+                        let avgB = totalB / diffCluster.length;
+                        if (avgB < b) b = avgB;
+                    }
+                });
+                if (b === Infinity) b = 0;
+
+                p.a = a;
+                p.b = b;
+                p.score = (a === 0 && b === 0) ? 0 : (b - a) / Math.max(a, b);
+            });
+        }
+
+        // Gambar Canvas Kiri (Data Poin)
+        function drawClusterCanvas() {
+            cCtx.clearRect(0, 0, cCanvas.width, cCanvas.height);
+            
+            // Grid abu-abu tipis (Simple & Bersih)
+            cCtx.strokeStyle = '#e5e7eb';
+            cCtx.lineWidth = 1;
+            for(let i=50; i<cCanvas.width; i+=50) {
+                cCtx.beginPath(); cCtx.moveTo(i, 0); cCtx.lineTo(i, cCanvas.height); cCtx.stroke();
+                cCtx.beginPath(); cCtx.moveTo(0, i); cCtx.lineTo(cCanvas.width, i); cCtx.stroke();
+            }
+
+            // Gambar Data Poin
+            points.forEach(p => {
+                cCtx.beginPath();
+                cCtx.arc(p.x, p.y, 9, 0, 2 * Math.PI);
+                cCtx.fillStyle = clusterColors[p.cluster].dot;
+                cCtx.fill();
+                cCtx.strokeStyle = '#ffffff';
+                cCtx.lineWidth = draggedPoint === p ? 3 : 1.5;
+                cCtx.stroke();
+
+                // Teks Label Skor di sebelah kanan titik
+                cCtx.fillStyle = '#4b5563';
+                cCtx.font = '600 11px sans-serif';
+                cCtx.fillText(`${p.id} (${p.score.toFixed(2)})`, p.x + 13, p.y + 4);
+            });
+        }
+
+        // Gambar Canvas Kanan (Silhouette Plot)
+        function drawSilhouettePlot() {
+            sCtx.clearRect(0, 0, sCanvas.width, sCanvas.height);
+            
+            let sortedPoints = [...points].sort((A, B) => A.cluster - B.cluster || B.score - A.score);
+            
+            let padLeft = 35;
+            let padRight = 15;
+            let chartW = sCanvas.width - padLeft - padRight;
+            let midX = padLeft + (chartW / 2); // Posisi nilai 0.00
+            
+            // Garis Sumbu
+            sCtx.strokeStyle = '#d1d5db';
+            sCtx.lineWidth = 1;
+            sCtx.beginPath(); sCtx.moveTo(midX, 5); sCtx.lineTo(midX, sCanvas.height - 25); sCtx.stroke();
+            sCtx.beginPath(); sCtx.moveTo(padLeft, 5); sCtx.lineTo(padLeft, sCanvas.height - 25); sCtx.stroke();
+            sCtx.beginPath(); sCtx.moveTo(sCanvas.width - padRight, 5); sCtx.lineTo(sCanvas.width - padRight, sCanvas.height - 25); sCtx.stroke();
+
+            // Teks Label Sumbu
+            sCtx.fillStyle = '#9ca3af'; sCtx.font = '10px monospace'; sCtx.textAlign = 'center';
+            sCtx.fillText("-1.0", padLeft, sCanvas.height - 10);
+            sCtx.fillText("0.0", midX, sCanvas.height - 10);
+            sCtx.fillText("+1.0", sCanvas.width - padRight, sCanvas.height - 10);
+
+            // Membuat Balok Skor
+            let barHeight = Math.min(15, (sCanvas.height - 40) / sortedPoints.length);
+            let gap = 2;
+
+            sortedPoints.forEach((p, idx) => {
+                let y = 10 + idx * (barHeight + gap);
+                let barWidth = p.score * (chartW / 2);
+
+                sCtx.fillStyle = clusterColors[p.cluster].fill;
+                sCtx.fillRect(midX, y, barWidth, barHeight);
+
+                // Highlight bingkai merah jika skor negatif (salah cluster)
+                if(p.score < 0) {
+                    sCtx.strokeStyle = '#ef4444';
+                    sCtx.strokeRect(midX, y, barWidth, barHeight);
+                }
+
+                // Label Huruf Poin di kiri
+                sCtx.fillStyle = '#374151'; sCtx.textAlign = 'left';
+                sCtx.font = 'bold 10px sans-serif';
+                sCtx.fillText(p.id, 12, y + barHeight - 2);
+            });
+        }
+
+        // Update Panel Teks & Angka
+        function updatePanelText() {
+            let total = points.reduce((sum, p) => sum + p.score, 0);
+            let avgGlobal = points.length > 0 ? total / points.length : 0;
+            
+            const gScoreEl = document.getElementById('globalScore');
+            gScoreEl.innerText = avgGlobal.toFixed(2);
+            
+            // Dinamika warna teks skor global
+            if(avgGlobal > 0.5) gScoreEl.className = "text-4xl font-black text-emerald-600 mt-1";
+            else if(avgGlobal > 0.2) gScoreEl.className = "text-4xl font-black text-amber-500 mt-1";
+            else gScoreEl.className = "text-4xl font-black text-red-500 mt-1";
+
+            // Mengisi tabel matematika
+            let html = `<table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="text-gray-400 border-b border-gray-200">
+                        <th class="pb-1">Titik</th>
+                        <th class="pb-1">a(i) [Rapat]</th>
+                        <th class="pb-1">b(i) [Pisah]</th>
+                        <th class="pb-1 text-right">Skor</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">`;
+            
+            [...points].sort((a,b) => a.id.localeCompare(b.id)).forEach(p => {
+                let scoreStyle = p.score >= 0 ? 'text-emerald-600' : 'text-red-500 font-bold';
+                html += `
+                    <tr>
+                        <td class="py-1.5 font-bold ${clusterColors[p.cluster].text}">${p.id}</td>
+                        <td class="py-1.5 font-mono text-gray-500">${p.a.toFixed(1)}</td>
+                        <td class="py-1.5 font-mono text-gray-500">${p.b.toFixed(1)}</td>
+                        <td class="py-1.5 font-mono text-right ${scoreStyle}">${p.score.toFixed(2)}</td>
+                    </tr>`;
+            });
+            html += `</tbody></table>`;
+            document.getElementById('breakdownPanel').innerHTML = html;
+        }
+
+        function updatePlayground() {
+            calculateSilhouette();
+            drawClusterCanvas();
+            drawSilhouettePlot();
+            updatePanelText();
+        }
+
+        // Logika Mouse / Drag n Drop
+        function getMouseCoords(e) {
+            const rect = cCanvas.getBoundingClientRect();
+            return {
+                x: (e.clientX - rect.left) * (cCanvas.width / rect.width),
+                y: (e.clientY - rect.top) * (cCanvas.height / rect.height)
+            };
+        }
+
+        cCanvas.addEventListener('mousedown', (e) => {
+            let mouse = getMouseCoords(e);
+            points.forEach(p => {
+                let dist = Math.sqrt(Math.pow(mouse.x-p.x, 2) + Math.pow(mouse.y-p.y, 2));
+                if(dist < 15) draggedPoint = p;
+            });
+        });
+
+        cCanvas.addEventListener('mousemove', (e) => {
+            if (draggedPoint) {
+                let mouse = getMouseCoords(e);
+                draggedPoint.x = Math.max(15, Math.min(cCanvas.width - 15, Math.round(mouse.x)));
+                draggedPoint.y = Math.max(15, Math.min(cCanvas.height - 15, Math.round(mouse.y)));
+                updatePlayground();
+            }
+        });
+
+        window.addEventListener('mouseup', () => { draggedPoint = null; });
+
+        // Double Click untuk swap/pindah cluster
+        cCanvas.addEventListener('dblclick', (e) => {
+            let mouse = getMouseCoords(e);
+            points.forEach(p => {
+                let dist = Math.sqrt(Math.pow(mouse.x-p.x, 2) + Math.pow(mouse.y-p.y, 2));
+                if(dist < 15) {
+                    p.cluster = p.cluster === 1 ? 2 : 1;
+                }
+            });
+            updatePlayground();
+        });
+
+        function resetData() {
+            initData();
+            updatePlayground();
+        }
+
+        // Jalankan aplikasi pertama kali
+        initData();
+        updatePlayground();
+    </script>
+</body>
+</html>
