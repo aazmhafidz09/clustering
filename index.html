@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unsupervised Learning</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --secondary: #14b8a6;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(20, 184, 166, 0.14), transparent 35%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 64px 20px 36px;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: var(--primary-dark);
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: clamp(36px, 6vw, 64px);
+      line-height: 1.05;
+      margin-bottom: 18px;
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      max-width: 760px;
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    main {
+      width: min(1120px, 92%);
+      margin: 0 auto 64px;
+    }
+
+    .section {
+      margin-top: 36px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .section-title span {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      flex: 0 0 auto;
+    }
+
+    h2 {
+      font-size: 26px;
+      letter-spacing: -0.3px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      min-height: 190px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+      border-color: rgba(37, 99, 235, 0.35);
+    }
+
+    .card h3 {
+      font-size: 21px;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .card p {
+      color: var(--muted);
+      font-size: 15px;
+      margin-bottom: 22px;
+    }
+
+    .card a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      gap: 8px;
+      padding: 10px 15px;
+      border-radius: 12px;
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .card a:hover {
+      opacity: 0.92;
+      transform: scale(1.02);
+    }
+
+    .wide-card {
+      grid-column: 1 / -1;
+      min-height: 150px;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      padding: 24px 20px 40px;
+    }
+
+    @media (max-width: 640px) {
+      header {
+        padding-top: 44px;
+      }
+
+      .card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="badge">Machine Learning Playground</div>
+    <h1>Unsupervised Learning</h1>
+    <p class="subtitle">
+      Kumpulan visualisasi interaktif dan playground sederhana untuk memahami algoritma clustering serta metode evaluasinya.
+    </p>
+  </header>
+
+  <main>
+    <section class="section" aria-labelledby="algorithm-title">
+      <div class="section-title">
+        <span></span>
+        <h2 id="algorithm-title">Algoritma Clustering</h2>
+      </div>
+
+      <div class="grid">
+        <article class="card">
+          <div>
+            <h3>Visualisasi K-Means</h3>
+            <p>Melihat proses pembentukan cluster menggunakan algoritma K-Means secara visual dan interaktif.</p>
+          </div>
+          <a href="https://aazmhafidz09.github.io/clustering/K-means.html" target="_blank" rel="noopener noreferrer">Buka Materi →</a>
+        </article>
+
+        <article class="card">
+          <div>
+            <h3>Perhitungan K-Means</h3>
+            <p>Mempelajari tahapan perhitungan K-Means, mulai dari centroid hingga pembaruan cluster.</p>
+          </div>
+          <a href="https://aazmhafidz09.github.io/clustering/calculation.html" target="_blank" rel="noopener noreferrer">Buka Materi →</a>
+        </article>
+
+        <article class="card">
+          <div>
+            <h3>DBSCAN</h3>
+            <p>Memahami clustering berbasis kepadatan data, termasuk konsep core point, border point, dan noise.</p>
+          </div>
+          <a href="https://www.naftaliharris.com/blog/visualizing-dbscan-clustering/" target="_blank" rel="noopener noreferrer">Buka Materi →</a>
+        </article>
+
+        <article class="card">
+          <div>
+            <h3>Agglomerative Clustering</h3>
+            <p>Mengeksplorasi cara kerja hierarchical clustering dari penggabungan cluster kecil menjadi cluster besar.</p>
+          </div>
+          <a href="https://aazmhafidz09.github.io/clustering/agglomerative_hierarchical_clustering_playground" target="_blank" rel="noopener noreferrer">Buka Materi →</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="evaluation-title">
+      <div class="section-title">
+        <span></span>
+        <h2 id="evaluation-title">Metode Evaluasi</h2>
+      </div>
+
+      <div class="grid">
+        <article class="card">
+          <div>
+            <h3>Sum of Squared Errors</h3>
+            <p>Mengukur seberapa dekat setiap data terhadap pusat clusternya menggunakan total kuadrat jarak.</p>
+          </div>
+          <a href="https://aazmhafidz09.github.io/clustering/SEE.html" target="_blank" rel="noopener noreferrer">Buka Materi →</a>
+        </article>
+
+        <article class="card">
+          <div>
+            <h3>Silhouette Coefficient</h3>
+            <p>Menilai kualitas cluster berdasarkan kedekatan data dengan cluster sendiri dan jaraknya dari cluster lain.</p>
+          </div>
+          <a href="https://aazmhafidz09.github.io/clustering/Silhouette_Coefficient.html" target="_blank" rel="noopener noreferrer">Buka Materi →</a>
+        </article>
+
+        <article class="card">
+          <div>
+            <h3>Elbow Method</h3>
+            <p>Membantu menentukan jumlah cluster yang tepat dengan melihat titik siku pada grafik error.</p>
+          </div>
+          <a href="https://aazmhafidz09.github.io/clustering/Elbow_Method.html" target="_blank" rel="noopener noreferrer">Buka Materi →</a>
+        </article>
+
+        <article class="card">
+          <div>
+            <h3>Hopkins Statistic</h3>
+            <p>Menguji apakah data memiliki kecenderungan membentuk cluster atau tersebar secara acak.</p>
+          </div>
+          <a href="https://aazmhafidz09.github.io/clustering/hopkins_statistic_playground.html" target="_blank" rel="noopener noreferrer">Buka Materi →</a>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 Unsupervised Learning Index</p>
+  </footer>
+</body>
+</html>
