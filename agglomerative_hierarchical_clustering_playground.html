@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agglomerative Hierarchical Clustering</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #dbe3ef;
+      --blue: #2563eb;
+      --blue-soft: #e8f0ff;
+      --green: #16a34a;
+      --green-soft: #e9f8ef;
+      --orange: #ea580c;
+      --orange-soft: #fff1e7;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+
+    header {
+      padding: 36px 24px 20px;
+      background: linear-gradient(135deg, #eef5ff 0%, #f9fbff 60%, #ffffff 100%);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .header-wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 860px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    .sticky {
+      position: sticky;
+      top: 16px;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 21px;
+      letter-spacing: -0.02em;
+    }
+
+    h3 {
+      margin: 22px 0 10px;
+      font-size: 17px;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin: 14px 0 7px;
+    }
+
+    textarea,
+    select,
+    input[type="range"] {
+      width: 100%;
+    }
+
+    textarea,
+    select {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      font: inherit;
+      background: #fff;
+      color: var(--ink);
+      outline: none;
+    }
+
+    textarea {
+      min-height: 210px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    textarea:focus,
+    select:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-weight: 800;
+      cursor: pointer;
+      background: var(--blue);
+      color: white;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
+    }
+
+    button.secondary {
+      background: #eef2ff;
+      color: #1e3a8a;
+      border: 1px solid #c7d2fe;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .note {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .formula {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      padding: 12px;
+      border-radius: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .tab.active {
+      background: var(--blue-soft);
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    .alert {
+      display: none;
+      margin-top: 12px;
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      padding: 11px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    @media (max-width: 760px) {
+      .summary {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .mini-card {
+      border: 1px solid var(--line);
+      background: #fbfdff;
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .mini-card .label {
+      margin: 0 0 4px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .mini-card .value {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 900;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 560px;
+      background: white;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th:last-child,
+    td:last-child {
+      border-right: 0;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    th {
+      background: #f8fafc;
+      font-weight: 900;
+    }
+
+    td.num,
+    th.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .highlight {
+      background: var(--green-soft) !important;
+      color: #14532d;
+      font-weight: 900;
+    }
+
+    .cluster-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 8px 0 0;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .pill.merge {
+      background: var(--orange-soft);
+      border-color: #fed7aa;
+      color: #9a3412;
+    }
+
+    .step-box {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+      background: #ffffff;
+    }
+
+    .step-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .step-title {
+      font-weight: 900;
+      font-size: 17px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+      white-space: nowrap;
+    }
+
+    .calc-line {
+      margin: 8px 0;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid #edf2f7;
+      font-size: 14px;
+      overflow-x: auto;
+    }
+
+    .calc-line strong {
+      color: #111827;
+    }
+
+    .slider-box {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin-bottom: 14px;
+    }
+
+    .dendrogram-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+      padding: 12px;
+    }
+
+    svg {
+      display: block;
+      min-width: 680px;
+      height: 360px;
+    }
+
+    .axis-label {
+      font-size: 12px;
+      fill: #6b7280;
+    }
+
+    .leaf-label {
+      font-size: 13px;
+      fill: #111827;
+      font-weight: 800;
+    }
+
+    .tree-line {
+      stroke: #1f2937;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .tree-line.future {
+      stroke: #cbd5e1;
+      stroke-dasharray: 4 4;
+    }
+
+    .dot {
+      fill: #2563eb;
+    }
+
+    .dot.future {
+      fill: #cbd5e1;
+    }
+
+    .dataset-preview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 8px;
+    }
+
+    .point-card {
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fbfdff;
+      font-size: 14px;
+    }
+
+    .point-card strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .footer-note {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-wrap">
+      <h1>Agglomerative Hierarchical Clustering</h1>
+      <p class="subtitle">
+        Simulasi interaktif untuk memahami proses <em>bottom-up clustering</em>: mulai dari setiap data sebagai cluster sendiri, menghitung jarak antar-cluster, memilih jarak terkecil, lalu menggabungkan cluster secara bertahap.
+      </p>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <aside class="card sticky">
+        <h2>Input Data</h2>
+        <p class="note">Format: <strong>Label, x, y</strong>. Satu data per baris.</p>
+        <textarea id="dataInput">A, 1, 1
+B, 1.5, 2
+C, 3, 4
+D, 5, 7
+E, 3.5, 5
+F, 4.5, 5</textarea>
+
+        <label for="linkageSelect">Metode Linkage</label>
+        <select id="linkageSelect">
+          <option value="single">Single Linkage — jarak minimum</option>
+          <option value="complete">Complete Linkage — jarak maksimum</option>
+          <option value="average">Average Linkage — rata-rata jarak</option>
+        </select>
+
+        <div class="button-row">
+          <button id="runBtn">Hitung Clustering</button>
+          <button class="secondary" id="resetBtn">Reset Contoh</button>
+        </div>
+
+        <div id="errorBox" class="alert"></div>
+
+        <h3>Rumus Dasar</h3>
+        <div class="formula">
+          d(P,Q) = √((x₂-x₁)² + (y₂-y₁)²)
+        </div>
+
+        <h3>Rumus Linkage</h3>
+        <div class="formula" id="linkageFormula">
+          single(Cᵢ,Cⱼ) = min d(a,b), a ∈ Cᵢ, b ∈ Cⱼ
+        </div>
+
+        <p class="note">
+          Catatan: contoh ini memakai jarak Euclidean untuk data 2 dimensi.
+        </p>
+      </aside>
+
+      <section>
+        <div class="summary" id="summary"></div>
+
+        <div class="card">
+          <div class="tabs">
+            <button class="tab active" data-tab="overview">Ringkasan</button>
+            <button class="tab" data-tab="matrix">Matriks Jarak</button>
+            <button class="tab" data-tab="steps">Perhitungan Bertahap</button>
+            <button class="tab" data-tab="dendrogram">Dendrogram</button>
+          </div>
+
+          <div id="overview" class="panel active">
+            <h2>Dataset</h2>
+            <div id="datasetPreview" class="dataset-preview"></div>
+
+            <h3>Ide Algoritma</h3>
+            <ol>
+              <li>Anggap setiap data sebagai satu cluster awal.</li>
+              <li>Hitung jarak antar-cluster berdasarkan metode linkage yang dipilih.</li>
+              <li>Pilih dua cluster dengan jarak paling kecil.</li>
+              <li>Gabungkan kedua cluster tersebut menjadi cluster baru.</li>
+              <li>Ulangi sampai semua data tergabung menjadi satu cluster.</li>
+            </ol>
+
+            <h3>Hasil Akhir</h3>
+            <div id="finalResult" class="step-box"></div>
+          </div>
+
+          <div id="matrix" class="panel">
+            <h2>Matriks Jarak Antar-Data Awal</h2>
+            <p class="muted">Matriks ini dihitung menggunakan jarak Euclidean antar-titik sebelum proses penggabungan cluster.</p>
+            <div id="distanceMatrix"></div>
+          </div>
+
+          <div id="steps" class="panel">
+            <h2>Perhitungan Bertahap</h2>
+            <div class="slider-box">
+              <div>
+                <strong>Lihat sampai langkah ke-<span id="stepLabel">1</span></strong>
+                <div class="note">Geser untuk memperlihatkan proses clustering bertahap.</div>
+              </div>
+              <input id="stepSlider" type="range" min="1" max="1" value="1" />
+            </div>
+            <div id="stepsContainer"></div>
+          </div>
+
+          <div id="dendrogram" class="panel">
+            <h2>Dendrogram Sederhana</h2>
+            <p class="muted">Garis yang lebih tinggi menunjukkan penggabungan pada jarak yang lebih besar. Garis putus-putus berarti langkah setelah posisi slider.</p>
+            <div class="slider-box">
+              <div>
+                <strong>Dendrogram sampai langkah ke-<span id="dendroStepLabel">1</span></strong>
+                <div class="note">Slider ini sama dengan slider pada tab perhitungan.</div>
+              </div>
+              <input id="dendroSlider" type="range" min="1" max="1" value="1" />
+            </div>
+            <div class="dendrogram-wrap">
+              <svg id="dendrogramSvg" viewBox="0 0 760 360" role="img" aria-label="Dendrogram hasil hierarchical clustering"></svg>
+            </div>
+          </div>
+        </div>
+
+        <p class="footer-note">Playground ini cocok untuk demonstrasi kelas, praktikum data mining, atau latihan memahami clustering hierarkis.</p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const defaultData = `A, 1, 1
+B, 1.5, 2
+C, 3, 4
+D, 5, 7
+E, 3.5, 5
+F, 4.5, 5`;
+
+    const dataInput = document.getElementById("dataInput");
+    const linkageSelect = document.getElementById("linkageSelect");
+    const linkageFormula = document.getElementById("linkageFormula");
+    const runBtn = document.getElementById("runBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const errorBox = document.getElementById("errorBox");
+    const summary = document.getElementById("summary");
+    const datasetPreview = document.getElementById("datasetPreview");
+    const distanceMatrix = document.getElementById("distanceMatrix");
+    const finalResult = document.getElementById("finalResult");
+    const stepsContainer = document.getElementById("stepsContainer");
+    const stepSlider = document.getElementById("stepSlider");
+    const stepLabel = document.getElementById("stepLabel");
+    const dendroSlider = document.getElementById("dendroSlider");
+    const dendroStepLabel = document.getElementById("dendroStepLabel");
+    const dendrogramSvg = document.getElementById("dendrogramSvg");
+
+    let currentResult = null;
+
+    function round(value, digits = 3) {
+      return Number.parseFloat(value).toFixed(digits).replace(/\.000$/, "");
+    }
+
+    function clusterName(cluster) {
+      return `{${cluster.points.map(p => p.label).join(", ")}}`;
+    }
+
+    function parseData(text) {
+      const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
+      if (lines.length < 2) {
+        throw new Error("Minimal harus ada 2 data.");
+      }
+
+      const labels = new Set();
+      const points = lines.map((line, index) => {
+        const parts = line.split(",").map(part => part.trim());
+        if (parts.length !== 3) {
+          throw new Error(`Baris ${index + 1} harus berformat: Label, x, y`);
+        }
+
+        const label = parts[0];
+        const x = Number(parts[1]);
+        const y = Number(parts[2]);
+
+        if (!label) throw new Error(`Label pada baris ${index + 1} tidak boleh kosong.`);
+        if (labels.has(label)) throw new Error(`Label '${label}' muncul lebih dari satu kali.`);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          throw new Error(`Nilai x dan y pada baris ${index + 1} harus berupa angka.`);
+        }
+
+        labels.add(label);
+        return { label, x, y, leafIndex: index };
+      });
+
+      return points;
+    }
+
+    function euclidean(a, b) {
+      return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2);
+    }
+
+    function pairDistanceDetails(clusterA, clusterB) {
+      const details = [];
+      for (const p of clusterA.points) {
+        for (const q of clusterB.points) {
+          details.push({
+            from: p.label,
+            to: q.label,
+            distance: euclidean(p, q)
+          });
+        }
+      }
+      return details;
+    }
+
+    function clusterDistance(clusterA, clusterB, linkage) {
+      const details = pairDistanceDetails(clusterA, clusterB);
+      const values = details.map(d => d.distance);
+      let distance;
+      let operation;
+
+      if (linkage === "single") {
+        distance = Math.min(...values);
+        operation = "min";
+      } else if (linkage === "complete") {
+        distance = Math.max(...values);
+        operation = "max";
+      } else {
+        distance = values.reduce((sum, value) => sum + value, 0) / values.length;
+        operation = "rata-rata";
+      }
+
+      return { distance, details, operation };
+    }
+
+    function makeInitialClusters(points) {
+      return points.map((point, index) => ({
+        id: `leaf-${point.label}`,
+        points: [point],
+        height: 0,
+        left: null,
+        right: null,
+        step: 0,
+        leafIndex: index
+      }));
+    }
+
+    function cloneClusters(clusters) {
+      return clusters.map(cluster => ({ ...cluster, points: [...cluster.points] }));
+    }
+
+    function runAgglomerative(points, linkage) {
+      let clusters = makeInitialClusters(points);
+      const steps = [];
+      let stepNumber = 1;
+
+      while (clusters.length > 1) {
+        const candidates = [];
+
+        for (let i = 0; i < clusters.length; i++) {
+          for (let j = i + 1; j < clusters.length; j++) {
+            const result = clusterDistance(clusters[i], clusters[j], linkage);
+            candidates.push({
+              i,
+              j,
+              clusterA: clusters[i],
+              clusterB: clusters[j],
+              distance: result.distance,
+              details: result.details,
+              operation: result.operation
+            });
+          }
+        }
+
+        candidates.sort((a, b) => a.distance - b.distance || clusterName(a.clusterA).localeCompare(clusterName(b.clusterA)));
+        const chosen = candidates[0];
+        const beforeClusters = cloneClusters(clusters);
+
+        const newCluster = {
+          id: `merge-${stepNumber}`,
+          points: [...chosen.clusterA.points, ...chosen.clusterB.points].sort((a, b) => a.leafIndex - b.leafIndex),
+          height: chosen.distance,
+          left: chosen.clusterA,
+          right: chosen.clusterB,
+          step: stepNumber,
+          leafIndex: Math.min(chosen.clusterA.leafIndex, chosen.clusterB.leafIndex)
+        };
+
+        const removeIds = new Set([chosen.clusterA.id, chosen.clusterB.id]);
+        clusters = clusters.filter(cluster => !removeIds.has(cluster.id));
+        clusters.push(newCluster);
+        clusters.sort((a, b) => a.leafIndex - b.leafIndex);
+
+        steps.push({
+          number: stepNumber,
+          beforeClusters,
+          allCandidates: candidates,
+          chosen,
+          newCluster,
+          afterClusters: cloneClusters(clusters)
+        });
+
+        stepNumber++;
+      }
+
+      return {
+        points,
+        linkage,
+        steps,
+        root: clusters[0]
+      };
+    }
+
+    function renderSummary(result) {
+      summary.innerHTML = `
+        <div class="mini-card">
+          <p class="label">Jumlah Data</p>
+          <p class="value">${result.points.length}</p>
+        </div>
+        <div class="mini-card">
+          <p class="label">Jumlah Penggabungan</p>
+          <p class="value">${result.steps.length}</p>
+        </div>
+        <div class="mini-card">
+          <p class="label">Linkage</p>
+          <p class="value">${linkageLabel(result.linkage)}</p>
+        </div>
+      `;
+    }
+
+    function linkageLabel(linkage) {
+      if (linkage === "single") return "Single";
+      if (linkage === "complete") return "Complete";
+      return "Average";
+    }
+
+    function updateFormula() {
+      const linkage = linkageSelect.value;
+      if (linkage === "single") {
+        linkageFormula.textContent = "single(Cᵢ,Cⱼ) = min d(a,b), a ∈ Cᵢ, b ∈ Cⱼ";
+      } else if (linkage === "complete") {
+        linkageFormula.textContent = "complete(Cᵢ,Cⱼ) = max d(a,b), a ∈ Cᵢ, b ∈ Cⱼ";
+      } else {
+        linkageFormula.textContent = "average(Cᵢ,Cⱼ) = Σ d(a,b) / jumlah pasangan, a ∈ Cᵢ, b ∈ Cⱼ";
+      }
+    }
+
+    function renderDataset(points) {
+      datasetPreview.innerHTML = points.map(point => `
+        <div class="point-card">
+          <strong>${point.label}</strong>
+          <span class="muted">x = ${point.x}, y = ${point.y}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderInitialMatrix(points) {
+      let html = `<div class="table-wrap"><table><thead><tr><th>Data</th>`;
+      for (const point of points) html += `<th class="num">${point.label}</th>`;
+      html += `</tr></thead><tbody>`;
+
+      for (let i = 0; i < points.length; i++) {
+        html += `<tr><th>${points[i].label}</th>`;
+        for (let j = 0; j < points.length; j++) {
+          if (i === j) {
+            html += `<td class="num">0</td>`;
+          } else if (j < i) {
+            html += `<td class="num muted">—</td>`;
+          } else {
+            html += `<td class="num">${round(euclidean(points[i], points[j]))}</td>`;
+          }
+        }
+        html += `</tr>`;
+      }
+
+      html += `</tbody></table></div>`;
+      distanceMatrix.innerHTML = html;
+    }
+
+    function renderFinalResult(result) {
+      const sequence = result.steps.map(step => `
+        <div class="calc-line">
+          Langkah ${step.number}: gabungkan <strong>${clusterName(step.chosen.clusterA)}</strong> dan <strong>${clusterName(step.chosen.clusterB)}</strong> karena jaraknya paling kecil, yaitu <strong>${round(step.chosen.distance)}</strong>.
+        </div>
+      `).join("");
+
+      finalResult.innerHTML = `
+        <p>Semua data akhirnya tergabung menjadi cluster:</p>
+        <div class="cluster-list">
+          <span class="pill merge">${clusterName(result.root)}</span>
+        </div>
+        <h3>Urutan Penggabungan</h3>
+        ${sequence}
+      `;
+    }
+
+    function calculationText(candidate, linkage) {
+      const values = candidate.details.map(item => `d(${item.from},${item.to})=${round(item.distance)}`);
+      if (linkage === "single") {
+        return `${values.join(", ")} → min = ${round(candidate.distance)}`;
+      }
+      if (linkage === "complete") {
+        return `${values.join(", ")} → max = ${round(candidate.distance)}`;
+      }
+      const sum = candidate.details.reduce((acc, item) => acc + item.distance, 0);
+      return `${values.join(", ")} → rata-rata = (${candidate.details.map(item => round(item.distance)).join(" + ")}) / ${candidate.details.length} = ${round(sum)} / ${candidate.details.length} = ${round(candidate.distance)}`;
+    }
+
+    function renderStepMatrix(step, linkage) {
+      const clusters = step.beforeClusters;
+      let html = `<div class="table-wrap"><table><thead><tr><th>Cluster</th>`;
+      for (const cluster of clusters) html += `<th class="num">${clusterName(cluster)}</th>`;
+      html += `</tr></thead><tbody>`;
+
+      for (let i = 0; i < clusters.length; i++) {
+        html += `<tr><th>${clusterName(clusters[i])}</th>`;
+        for (let j = 0; j < clusters.length; j++) {
+          if (i === j) {
+            html += `<td class="num">0</td>`;
+          } else if (j < i) {
+            html += `<td class="num muted">—</td>`;
+          } else {
+            const result = clusterDistance(clusters[i], clusters[j], linkage);
+            const isChosen = (clusters[i].id === step.chosen.clusterA.id && clusters[j].id === step.chosen.clusterB.id) ||
+                             (clusters[i].id === step.chosen.clusterB.id && clusters[j].id === step.chosen.clusterA.id);
+            html += `<td class="num ${isChosen ? "highlight" : ""}">${round(result.distance)}</td>`;
+          }
+        }
+        html += `</tr>`;
+      }
+
+      html += `</tbody></table></div>`;
+      return html;
+    }
+
+    function renderSteps(limit) {
+      const result = currentResult;
+      if (!result) return;
+
+      const visibleSteps = result.steps.slice(0, limit);
+      stepsContainer.innerHTML = visibleSteps.map(step => {
+        const candidateLines = step.allCandidates.map(candidate => {
+          const selected = candidate.clusterA.id === step.chosen.clusterA.id && candidate.clusterB.id === step.chosen.clusterB.id;
+          return `
+            <div class="calc-line ${selected ? "highlight" : ""}">
+              <strong>${clusterName(candidate.clusterA)}</strong> dengan <strong>${clusterName(candidate.clusterB)}</strong>: ${calculationText(candidate, result.linkage)}
+            </div>
+          `;
+        }).join("");
+
+        return `
+          <div class="step-box">
+            <div class="step-head">
+              <div>
+                <div class="step-title">Langkah ${step.number}</div>
+                <div class="muted">Cluster sebelum digabungkan:</div>
+                <div class="cluster-list">
+                  ${step.beforeClusters.map(cluster => `<span class="pill">${clusterName(cluster)}</span>`).join("")}
+                </div>
+              </div>
+              <span class="badge">Jarak terpilih: ${round(step.chosen.distance)}</span>
+            </div>
+
+            <h3>Matriks jarak pada langkah ini</h3>
+            ${renderStepMatrix(step, result.linkage)}
+
+            <h3>Perhitungan jarak antar-cluster</h3>
+            ${candidateLines}
+
+            <h3>Cluster yang digabung</h3>
+            <div class="calc-line highlight">
+              Karena jarak paling kecil adalah <strong>${round(step.chosen.distance)}</strong>, maka <strong>${clusterName(step.chosen.clusterA)}</strong> dan <strong>${clusterName(step.chosen.clusterB)}</strong> digabung menjadi <strong>${clusterName(step.newCluster)}</strong>.
+            </div>
+
+            <div class="muted">Cluster setelah langkah ${step.number}:</div>
+            <div class="cluster-list">
+              ${step.afterClusters.map(cluster => `<span class="pill ${cluster.id === step.newCluster.id ? "merge" : ""}">${clusterName(cluster)}</span>`).join("")}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function layoutTree(root, points, maxHeight) {
+      const marginLeft = 44;
+      const marginRight = 30;
+      const marginTop = 24;
+      const marginBottom = 52;
+      const width = 760;
+      const height = 360;
+      const plotWidth = width - marginLeft - marginRight;
+      const plotHeight = height - marginTop - marginBottom;
+      const leafGap = plotWidth / Math.max(points.length - 1, 1);
+      const leafX = new Map();
+
+      points.forEach((point, index) => {
+        leafX.set(point.label, marginLeft + index * leafGap);
+      });
+
+      function yScale(value) {
+        if (maxHeight === 0) return height - marginBottom;
+        return height - marginBottom - (value / maxHeight) * plotHeight;
+      }
+
+      function walk(node) {
+        if (!node.left && !node.right) {
+          const point = node.points[0];
+          return {
+            ...node,
+            x: leafX.get(point.label),
+            y: yScale(0),
+            children: []
+          };
+        }
+
+        const left = walk(node.left);
+        const right = walk(node.right);
+        return {
+          ...node,
+          x: (left.x + right.x) / 2,
+          y: yScale(node.height),
+          children: [left, right]
+        };
+      }
+
+      return { tree: walk(root), yScale, width, height, marginLeft, marginBottom };
+    }
+
+    function renderDendrogram(limit) {
+      const result = currentResult;
+      if (!result) return;
+
+      const maxHeight = Math.max(...result.steps.map(step => step.chosen.distance), 1);
+      const { tree, yScale, width, height, marginLeft, marginBottom } = layoutTree(result.root, result.points, maxHeight);
+      const elements = [];
+
+      elements.push(`<line x1="${marginLeft}" y1="24" x2="${marginLeft}" y2="${height - marginBottom}" stroke="#cbd5e1" stroke-width="1"/>`);
+      elements.push(`<text x="8" y="30" class="axis-label">jarak</text>`);
+      elements.push(`<text x="8" y="${height - marginBottom}" class="axis-label">0</text>`);
+      elements.push(`<text x="8" y="${yScale(maxHeight)}" class="axis-label">${round(maxHeight)}</text>`);
+
+      function drawNode(node) {
+        if (!node.children.length) {
+          const label = node.points[0].label;
+          elements.push(`<text x="${node.x}" y="${height - 18}" text-anchor="middle" class="leaf-label">${label}</text>`);
+          elements.push(`<circle cx="${node.x}" cy="${node.y}" r="4" class="dot"/>`);
+          return;
+        }
+
+        const [left, right] = node.children;
+        drawNode(left);
+        drawNode(right);
+
+        const futureClass = node.step > limit ? "future" : "";
+        elements.push(`<path d="M ${left.x} ${left.y} V ${node.y} H ${right.x} V ${right.y}" class="tree-line ${futureClass}"/>`);
+        elements.push(`<circle cx="${node.x}" cy="${node.y}" r="4" class="dot ${futureClass}"/>`);
+        elements.push(`<text x="${node.x + 8}" y="${node.y - 6}" class="axis-label">${round(node.height)}</text>`);
+      }
+
+      drawNode(tree);
+      dendrogramSvg.innerHTML = elements.join("");
+    }
+
+    function syncSliders(value) {
+      stepSlider.value = value;
+      dendroSlider.value = value;
+      stepLabel.textContent = value;
+      dendroStepLabel.textContent = value;
+      renderSteps(Number(value));
+      renderDendrogram(Number(value));
+    }
+
+    function showError(message) {
+      errorBox.textContent = message;
+      errorBox.style.display = "block";
+    }
+
+    function clearError() {
+      errorBox.textContent = "";
+      errorBox.style.display = "none";
+    }
+
+    function calculate() {
+      try {
+        clearError();
+        updateFormula();
+        const points = parseData(dataInput.value);
+        const linkage = linkageSelect.value;
+        const result = runAgglomerative(points, linkage);
+        currentResult = result;
+
+        renderSummary(result);
+        renderDataset(points);
+        renderInitialMatrix(points);
+        renderFinalResult(result);
+
+        const maxStep = Math.max(result.steps.length, 1);
+        stepSlider.max = maxStep;
+        dendroSlider.max = maxStep;
+        syncSliders(maxStep);
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(item => item.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach(item => item.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(tab.dataset.tab).classList.add("active");
+      });
+    });
+
+    linkageSelect.addEventListener("change", calculate);
+    runBtn.addEventListener("click", calculate);
+    resetBtn.addEventListener("click", () => {
+      dataInput.value = defaultData;
+      linkageSelect.value = "single";
+      calculate();
+    });
+
+    stepSlider.addEventListener("input", event => syncSliders(Number(event.target.value)));
+    dendroSlider.addEventListener("input", event => syncSliders(Number(event.target.value)));
+
+    calculate();
+  </script>
+</body>
+</html>
