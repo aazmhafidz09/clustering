@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playground Interaktif Perhitungan SSE Clustering</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 { margin-bottom: 5px; color: #2c3e50; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 850px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 2px solid #bdc3c7;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: crosshair;
+            width: 100%;
+            height: auto;
+        }
+        .instruction {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        .controls {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #2980b9; }
+        button.clear { background-color: #e74c3c; }
+        button.clear:hover { background-color: #c0392b; }
+        .sse-box {
+            background-color: #2e3d49;
+            color: #1abc9c;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 1.4rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .sse-box span { color: white; font-size: 1rem; display: block; margin-bottom: 5px;}
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.85rem;
+        }
+        th, td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th { background-color: #f2f2f2; color: #2c3e50; }
+        .c1-text { color: #e74c3c; font-weight: bold; }
+        .c2-text { color: #3498db; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Playground Interaktif SSE (Sum of Squared Errors)</h1>
+        <p>Klik pada area Canvas untuk memindahkan data poin dan lihat perubahan SSE secara langsung!</p>
+    </header>
+
+    <div class="grid">
+        <div class="card">
+            <div class="controls">
+                <button onclick="resetData()">Reset Posisi Awal</button>
+                <button class="clear" onclick="clearAllPoints()">Hapus Semua Titik</button>
+            </div>
+            <canvas id="clusterCanvas" width="500" height="500"></canvas>
+            <p class="instruction">*Tips: Arahkan kursor dan **drag (geser)** titik merah/biru untuk melihat bagaimana jarak kuadrat memengaruhi total nilai SSE.</p>
+        </div>
+
+        <div class="card">
+            <div class="sse-box">
+                <span>TOTAL SSE (INERTIA)</span>
+                <div id="sseValue">0.00</div>
+            </div>
+
+            <h3>Daftar Koordinat & Jarak Kuadrat</h3>
+            <p style="font-size: 0.9rem; margin-top:-10px;">Jarak Kuadrat = $(X_{titik} - X_{centroid})^2 + (Y_{titik} - Y_{centroid})^2$</p>
+            
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Titik</th>
+                            <th>Cluster</th>
+                            <th>Koordinat (X, Y)</th>
+                            <th>Centroid Terdekat</th>
+                            <th>Jarak Kuadrat</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('clusterCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Inisialisasi Data Awal (Playground)
+    let points = [
+        { id: 'A', x: 100, y: 150 },
+        { id: 'B', x: 150, y: 200 },
+        { id: 'C', x: 120, y: 250 },
+        { id: 'D', x: 380, y: 350 },
+        { id: 'E', x: 420, y: 390 },
+        { id: 'F', x: 350, y: 410 }
+    ];
+
+    let centroids = [
+        { id: 1, x: 0, y: 0, color: '#e74c3c', label: 'Centroid 1' },
+        { id: 2, x: 0, y: 0, color: '#3498db', label: 'Centroid 2' }
+    ];
+
+    let draggedPoint = null;
+
+    // Fungsi menghitung Centroid secara otomatis (Mean dari posisi cluster)
+    function updateCentroidsAndClusters() {
+        if (points.length === 0) {
+            centroids[0].x = 150; centroids[0].y = 150;
+            centroids[1].x = 350; centroids[1].y = 350;
+            return;
+        }
+
+        // K-Means sederhana berbasis jarak terdekat (Hard Clustering)
+        points.forEach(p => {
+            // Kita tentukan pusat dummy sementara di awal untuk hitung kedekatan
+            // Untuk simulasi interaktif ini, kita asumsikan 2 kelompok berdasarkan wilayah geografis canvas awal
+            // Atau mengelompokkan ke centroid iterasi sebelumnya.
+        });
+
+        // Demi simplifikasi interaktif yang stabil: 
+        // Titik A, B, C dikunci ke Cluster 1, Titik D, E, F ke Cluster 2 (Atau berdasarkan jarak terdekat)
+        // Di sini kita gunakan penentuan dinamis berdasarkan jarak terdekat ke Centroid sebelumnya
+        
+        // Let's use static assignment based on initial groups agar user bisa bereksperimen menarik titik menjauh
+        points.forEach((p, index) => {
+            if(index < points.length / 2) {
+                p.cluster = 1;
+            } else {
+                p.cluster = 2;
+            }
+        });
+
+        // Hitung rata-rata koordinat untuk menggeser posisi Centroid (Sifat K-Means asli)
+        [1, 2].forEach(cId => {
+            let clusterPoints = points.filter(p => p.cluster === cId);
+            let cIndex = cId - 1;
+            if (clusterPoints.length > 0) {
+                let sumX = clusterPoints.reduce((sum, p) => sum + p.x, 0);
+                let sumY = clusterPoints.reduce((sum, p) => sum + p.y, 0);
+                centroids[cIndex].x = Math.round(sumX / clusterPoints.length);
+                centroids[cIndex].y = Math.round(sumY / clusterPoints.length);
+            }
+        });
+    }
+
+    // Fungsi Utama Menghitung Nilai SSE
+    function calculateSSE() {
+        let totalSSE = 0;
+        let tableHTML = '';
+
+        points.forEach(p => {
+            let centroid = centroids[p.cluster - 1];
+            
+            // Rumus Jarak Kuadrat (Euclidean tanpa akar)
+            let dx = p.x - centroid.x;
+            let dy = p.y - centroid.y;
+            let sqDist = (dx * dx) + (dy * dy);
+            
+            totalSSE += sqDist;
+
+            let clusterClass = p.cluster === 1 ? 'c1-text' : 'c2-text';
+
+            tableHTML += `<tr>
+                <td><strong>${p.id}</strong></td>
+                <td class="${clusterClass}">Cluster ${p.cluster}</td>
+                <td>[${p.x}, ${p.y}]</td>
+                <td>[${centroid.x}, ${centroid.y}]</td>
+                <td>${sqDist.toLocaleString('id-ID')}</td>
+            </tr>`;
+        });
+
+        document.getElementById('sseValue').innerText = totalSSE.toLocaleString('id-ID');
+        document.getElementById('tableBody').innerHTML = tableHTML;
+    }
+
+    // Fungsi Menggambar pada Canvas
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Gambar Garis Hubung (Error bar visual) terlebih dahulu agar berada di bawah titik
+        points.forEach(p => {
+            let centroid = centroids[p.cluster - 1];
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(centroid.x, centroid.y);
+            ctx.strokeStyle = '#95a5a6';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]); // Garis putus-putus
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset
+        });
+
+        // Gambar Titik Data
+        points.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = p.cluster === 1 ? '#e74c3c' : '#3498db';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
+
+            // Label Titik
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Arial';
+            ctx.fillText(p.id, p.x + 12, p.y + 4);
+        });
+
+        // Gambar Centroid (Berbentuk X besar)
+        centroids.forEach(c => {
+            ctx.strokeStyle = c.color;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            let size = 10;
+            // Menggambar tanda silang 'X'
+            ctx.moveTo(c.x - size, c.y - size);
+            ctx.lineTo(c.x + size, c.y + size);
+            ctx.moveTo(c.x + size, c.y - size);
+            ctx.lineTo(c.x - size, c.y + size);
+            ctx.stroke();
+
+            // Label Centroid
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(c.label, c.x - 25, c.y - 15);
+        });
+    }
+
+    function updatePlayground() {
+        updateCentroidsAndClusters();
+        calculateSSE();
+        draw();
+    }
+
+    // Event Listener untuk Interaksi Mouse (Drag & Drop Titik)
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        // Menyelaraskan koordinat klik berdasarkan skala canvas asli (500x500)
+        const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+        // Cek apakah klik mengenai salah satu titik data
+        points.forEach(p => {
+            let dist = Math.sqrt((mouseX - p.x)**2 + (mouseY - p.y)**2);
+            if (dist < 15) { // Radius toleransi klik 15 pixel
+                draggedPoint = p;
+            }
+        });
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (draggedPoint) {
+            const rect = canvas.getBoundingClientRect();
+            let mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            let mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+            // Batasi agar tidak keluar area canvas
+            draggedPoint.x = Math.max(10, Math.min(canvas.width - 10, Math.round(mouseX)));
+            draggedPoint.y = Math.max(10, Math.min(canvas.height - 10, Math.round(mouseY)));
+
+            updatePlayground();
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        draggedPoint = null;
+    });
+
+    // Kontrol Fitur Interaktif Tambahan
+    function resetData() {
+        points = [
+            { id: 'A', x: 100, y: 150 },
+            { id: 'B', x: 150, y: 200 },
+            { id: 'C', x: 120, y: 250 },
+            { id: 'D', x: 380, y: 350 },
+            { id: 'E', x: 420, y: 390 },
+            { id: 'F', x: 350, y: 410 }
+        ];
+        updatePlayground();
+    }
+
+    function clearAllPoints() {
+        points = [];
+        updatePlayground();
+    }
+
+    // Jalankan pertama kali saat dokumen dimuat
+    updatePlayground();
+</script>
+
+</body>
+</html>
