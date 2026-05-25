@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Playground: K-Means & SSE Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        canvas { touch-action: none; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 text-center md:text-left">
+            <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500">
+                Advanced SSE & K-Means Playground
+            </h1>
+            <p class="text-slate-400 mt-2">
+                Simulasi interaktif untuk memahami <span class="text-teal-400 font-semibold">Sum of Squared Errors (SSE)</span>. Geser titik, ubah K, atau tambahkan data baru secara dinamis!
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <div class="lg:col-span-7 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+                <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                    <div class="flex items-center space-x-3 bg-slate-900 p-2 rounded-xl border border-slate-700">
+                        <label class="text-sm font-medium text-slate-300">Jumlah Cluster (K):</label>
+                        <select id="kSelect" onchange="changeK(this.value)" class="bg-slate-800 text-teal-400 font-bold px-3 py-1 rounded border border-slate-600 focus:outline-none focus:border-teal-400">
+                            <option value="1">K = 1</option>
+                            <option value="2" selected>K = 2</option>
+                            <option value="3">K = 3</option>
+                            <option value="4">K = 4</option>
+                        </select>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="resetData()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-sm font-semibold rounded-xl transition">
+                            Reset Data
+                        </button>
+                        <button onclick="clearAll()" class="px-4 py-2 bg-rose-600/80 hover:bg-rose-600 text-sm font-semibold rounded-xl transition">
+                            Hapus Semua
+                        </button>
+                    </div>
+                </div>
+
+                <div class="relative bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
+                    <canvas id="mainCanvas" width="600" height="500" class="w-full h-auto cursor-crosshair"></canvas>
+                </div>
+                <p class="text-xs text-slate-500 mt-3 italic">
+                    *Petunjuk: **Drag & drop** titik untuk memindahkannya. **Double-click** pada area kosong untuk menambah titik data baru.
+                </p>
+            </div>
+
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-2xl border border-slate-700 shadow-xl flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Total SSE (Inertia)</p>
+                        <h2 id="sseValue" class="text-4xl font-black text-emerald-400 mt-1">0</h2>
+                    </div>
+                    <div class="p-3 bg-slate-900/50 rounded-2xl border border-slate-700 text-center text-xs text-slate-400">
+                        Formula aktif:<br><span class="font-mono text-teal-400">Σ dist(x,c)²</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+                    <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Live Elbow Method (Analisis K)</h3>
+                    <p class="text-xs text-slate-400 mb-4">Grafik ini menghitung otomatis nilai SSE terbaik di setiap skenario K secara realtime.</p>
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                        <canvas id="elbowCanvas" width="400" height="180" class="w-full h-auto"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex-1 overflow-y-auto max-h-[250px]">
+                    <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4">Posisi Pusat Cluster (Centroids)</h3>
+                    <div id="centroidList" class="space-y-3">
+                        </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const elbowCanvas = document.getElementById('elbowCanvas');
+        const elbowCtx = elbowCanvas.getContext('2d');
+
+        // Palet warna untuk cluster dan centroid
+        const colors = {
+            1: { dot: '#f43f5e', centroid: '#ec4899', name: 'Cluster 1' }, // Rose/Pink
+            2: { dot: '#3b82f6', centroid: '#60a5fa', name: 'Cluster 2' }, // Blue
+            3: { dot: '#10b981', centroid: '#34d399', name: 'Cluster 3' }, // Emerald
+            4: { dot: '#eab308', centroid: '#fde047', name: 'Cluster 4' }  // Yellow
+        };
+
+        let K = 2;
+        let points = [];
+        let centroids = [];
+        let draggedPoint = null;
+
+        // Inisialisasi data bawaan yang tersebar acak agar menarik
+        function initDefaultPoints() {
+            points = [
+                { x: 120, y: 130 }, { x: 160, y: 180 }, { x: 140, y: 240 }, { x: 80, y: 190 },
+                { x: 480, y: 350 }, { x: 420, y: 390 }, { x: 500, y: 420 }, { x: 440, y: 310 },
+                { x: 450, y: 150 }, { x: 510, y: 120 }
+            ];
+        }
+
+        // Inisialisasi posisi awal centroid secara merata di dalam grid canvas
+        function initCentroids(targetK) {
+            centroids = [];
+            for (let i = 0; i < targetK; i++) {
+                centroids.push({
+                    id: i + 1,
+                    // Distribusi posisi awal agar tidak bertumpuk di satu tempat
+                    x: 100 + (i * (canvas.width - 200) / (targetK > 1 ? targetK - 1 : 1)),
+                    y: 250
+                });
+            }
+        }
+
+        // FASE 1 K-MEANS: Menentukan cluster terdekat untuk setiap titik data (Hard Assignment)
+        function assignPointsToClusters(targetPoints, targetCentroids) {
+            targetPoints.forEach(p => {
+                let minDist = Infinity;
+                let closestCluster = 1;
+
+                targetCentroids.forEach(c => {
+                    let d = Math.pow(p.x - c.x, 2) + Math.pow(p.y - c.y, 2); // Jarak kuadrat
+                    if (d < minDist) {
+                        minDist = d;
+                        closestCluster = c.id;
+                    }
+                });
+                p.cluster = closestCluster;
+            });
+        }
+
+        // FASE 2 K-MEANS: Memperbarui posisi Centroid berdasarkan rata-rata (Mean) anggotanya
+        function updateCentroidPositions(targetPoints, targetCentroids) {
+            targetCentroids.forEach(c => {
+                let members = targetPoints.filter(p => p.cluster === c.id);
+                if (members.length > 0) {
+                    let sumX = members.reduce((s, p) => s + p.x, 0);
+                    let sumY = members.reduce((s, p) => s + p.y, 0);
+                    c.x = Math.round(sumX / members.length);
+                    c.y = Math.round(sumY / members.length);
+                }
+            });
+        }
+
+        // Menghitung Nilai Akhir SSE dari Skenario Tertentu
+        function getSSE(targetPoints, targetCentroids) {
+            let sse = 0;
+            targetPoints.forEach(p => {
+                let c = targetCentroids.find(centroid => centroid.id === p.cluster);
+                if (c) {
+                    sse += Math.pow(p.x - c.x, 2) + Math.pow(p.y - c.y, 2);
+                }
+            });
+            return sse;
+        }
+
+        // Simulasi K-Means Iteratif di background untuk keperluan membuat grafik Elbow
+        function runKMeansSimulation(simK) {
+            if (points.length === 0) return 0;
+            
+            // Kloning data asli agar tidak mengacaukan visualisasi utama
+            let simPoints = points.map(p => ({...p}));
+            let simCentroids = [];
+            for (let i = 0; i < simK; i++) {
+                simCentroids.push({ id: i + 1, x: 50 + (i * (canvas.width - 100) / simK), y: 250 });
+            }
+
+            // Jalankan iterasi optimasi sebanyak 6 kali di latar belakang
+            for (let iter = 0; iter < 6; iter++) {
+                assignPointsToClusters(simPoints, simCentroids);
+                updateCentroidPositions(simPoints, simCentroids);
+            }
+            return getSSE(simPoints, simCentroids);
+        }
+
+        // Render Grafik Siku (Elbow Method Chart) secara manual ke Canvas Kecil
+        function drawElbowChart() {
+            elbowCtx.clearRect(0, 0, elbowCanvas.width, elbowCanvas.height);
+            
+            let sseValues = [];
+            for (let kVal = 1; kVal <= 4; kVal++) {
+                sseValues.push(runKMeansSimulation(kVal));
+            }
+
+            let maxSSE = Math.max(...sseValues, 1);
+            let padding = 25;
+            let chartW = elbowCanvas.width - (padding * 2);
+            let chartH = elbowCanvas.height - (padding * 2);
+
+            // Koordinat fungsi konversi nilai matematika ke piksel canvas grafik
+            let getX = (kIndex) => padding + (kIndex * (chartW / 3));
+            let getY = (sseVal) => (elbowCanvas.height - padding) - (sseVal / maxSSE * chartH);
+
+            // Gambar Garis Kisi-Kisi (Grid Background)
+            elbowCtx.strokeStyle = '#334155';
+            elbowCtx.lineWidth = 1;
+            for(let i=0; i<=3; i++) {
+                elbowCtx.beginPath();
+                elbowCtx.moveTo(getX(i), padding);
+                elbowCtx.lineTo(getX(i), elbowCanvas.height - padding);
+                elbowCtx.stroke();
+            }
+
+            // Hubungkan Garis Skenario SSE (Line Chart)
+            elbowCtx.beginPath();
+            elbowCtx.strokeStyle = '#2dd4bf';
+            elbowCtx.lineWidth = 3;
+            for (let i = 0; i < 4; i++) {
+                if (i === 0) elbowCtx.moveTo(getX(i), getY(sseValues[i]));
+                else elbowCtx.lineTo(getX(i), getY(sseValues[i]));
+            }
+            elbowCtx.stroke();
+
+            // Gambar Titik Penunjuk K
+            for (let i = 0; i < 4; i++) {
+                let currentK = i + 1;
+                elbowCtx.beginPath();
+                elbowCtx.arc(getX(i), getY(sseValues[i]), currentK === K ? 6 : 4, 0, 2 * Math.PI);
+                elbowCtx.fillStyle = currentK === K ? '#fb7185' : '#38bdf8';
+                elbowCtx.fill();
+
+                // Teks Label Sumbu X (K=1, K=2, dst)
+                elbowCtx.fillStyle = '#94a3b8';
+                elbowCtx.font = '10px sans-serif';
+                elbowCtx.textAlign = 'center';
+                elbowCtx.fillText(`K=${currentK}`, getX(i), elbowCanvas.height - 8);
+            }
+        }
+
+        // Render Utama ke Canvas Besar
+        function drawMainCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Menggambar Garis Error (Menghubungkan titik ke Centroid masing-masing)
+            points.forEach(p => {
+                let c = centroids.find(centroid => centroid.id === p.cluster);
+                if (c) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(c.x, c.y);
+                    ctx.strokeStyle = '#475569';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 4]); // Garis putus-putus
+                    ctx.stroke();
+                    ctx.setLineDash([]); // Reset agar elemen lain tidak ikut putus-putus
+                }
+            });
+
+            // 2. Menggambar Titik Data Poin
+            points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 8, 0, 2 * Math.PI);
+                ctx.fillStyle = colors[p.cluster]?.dot || '#ffffff';
+                ctx.fill();
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            // 3. Menggambar Titik Silang Pusat Cluster (Centroid)
+            centroids.forEach(c => {
+                ctx.strokeStyle = colors[c.id]?.centroid || '#ffffff';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                let size = 12;
+                // Simbol X Moderen
+                ctx.moveTo(c.x - size, c.y - size);
+                ctx.lineTo(c.x + size, c.y + size);
+                ctx.moveTo(c.x + size, c.y - size);
+                ctx.lineTo(c.x - size, c.y + size);
+                ctx.stroke();
+
+                // Lingkaran luar pelindung Centroid
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, size + 4, 0, 2 * Math.PI);
+                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+        }
+
+        // Memperbarui UI Teks, Nilai SSE, dan List Centroid
+        function updateUI() {
+            // Hitung K-means internal
+            assignPointsToClusters(points, centroids);
+            updateCentroidPositions(points, centroids);
+            // Jalankan ulang kalkulasi cluster penyesuaian akhir
+            assignPointsToClusters(points, centroids);
+
+            let currentSSE = getSSE(points, centroids);
+            document.getElementById('sseValue').innerText = currentSSE.toLocaleString('id-ID');
+
+            // Render komponen visual daftar list di kanan bawah
+            let html = '';
+            centroids.forEach(c => {
+                let memberCount = points.filter(p => p.cluster === c.id).length;
+                html += `
+                    <div class="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-700/60">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full" style="background-color: ${colors[c.id].dot}"></span>
+                            <span class="text-sm font-semibold">${colors[c.id].name}</span>
+                        </div>
+                        <div class="text-xs text-slate-400">
+                            Pusat: <span class="font-mono text-teal-400">[${c.x}, ${c.y}]</span> | Anggota: <span class="font-bold text-slate-200">${memberCount}</span>
+                        </div>
+                    </div>`;
+            });
+            document.getElementById('centroidList').innerHTML = html;
+        }
+
+        // Fungsi Orkestrasi Utama (Engine Refresher)
+        function updatePlayground() {
+            updateUI();
+            drawMainCanvas();
+            drawElbowChart();
+        }
+
+        // EVENT LISTENER MOUSE MOUSE UNTUK INTERAKSI CANVAS
+        function getMouseCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: Math.round((e.clientX - rect.left) * (canvas.width / rect.width)),
+                y: Math.round((e.clientY - rect.top) * (canvas.height / rect.height))
+            };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const mouse = getMouseCoords(e);
+            // Cek apakah mouse mendekati titik tertentu (toleransi jarak klik 14px)
+            points.forEach(p => {
+                let dist = Math.sqrt(Math.pow(mouse.x - p.x, 2) + Math.pow(mouse.y - p.y, 2));
+                if (dist < 14) draggedPoint = p;
+            });
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (draggedPoint) {
+                const mouse = getMouseCoords(e);
+                // Batasi pergerakan tikus agar koordinat tidak melompati border kanvas
+                draggedPoint.x = Math.max(10, Math.min(canvas.width - 10, mouse.x));
+                draggedPoint.y = Math.max(10, Math.min(canvas.height - 10, mouse.y));
+                updatePlayground();
+            }
+        });
+
+        window.addEventListener('mouseup', () => { draggedPoint = null; });
+
+        // Double Click Event - Membuat Titik Baru
+        canvas.addEventListener('dblclick', (e) => {
+            const mouse = getMouseCoords(e);
+            points.push({ x: mouse.x, y: mouse.y });
+            updatePlayground();
+        });
+
+        // KONTROL PANEL UTAMA
+        function changeK(val) {
+            K = parseInt(val);
+            initCentroids(K);
+            updatePlayground();
+        }
+
+        function resetData() {
+            initDefaultPoints();
+            initCentroids(K);
+            updatePlayground();
+        }
+
+        function clearAll() {
+            points = [];
+            centroids = [];
+            updatePlayground();
+        }
+
+        // Setup awal saat halaman pertama kali dibuka
+        initDefaultPoints();
+        initCentroids(K);
+        updatePlayground();
+    </script>
+</body>
+</html>
