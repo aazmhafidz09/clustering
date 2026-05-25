@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Visualisasi K-Means Clustering</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Playground Interaktif</p>
+          <h1>Visualisasi K-Means Clustering</h1>
+        </div>
+        <nav class="page-actions" aria-label="Navigasi halaman">
+          <a class="nav-button" href="calculation.html">Halaman perhitungan</a>
+          <a class="nav-button" href="evaluation.html">Evaluasi cluster</a>
+          <div class="status-pill" id="iterationStatus">Iterasi 0</div>
+        </nav>
+      </header>
+
+      <section class="workspace" aria-label="Playground algoritma K-Means">
+        <div class="plot-column">
+          <div class="canvas-frame">
+            <canvas id="plotCanvas" width="920" height="920" aria-label="Scatter plot K-Means"></canvas>
+          </div>
+          <div class="metric-row">
+            <span>Mean square point-centroid distance:</span>
+            <strong id="mseValue">belum dihitung</strong>
+          </div>
+        </div>
+
+        <aside class="side-panel">
+          <section class="intro">
+            <p>
+              Algoritma <em>k-means</em> mengelompokkan N titik ke dalam k cluster.
+              Playground ini memperlihatkan dua langkah inti secara bergantian:
+              mencari centroid terdekat dan memperbarui posisi centroid.
+            </p>
+          </section>
+
+          <section class="algorithm-panel">
+            <h2>Algorithm</h2>
+            <p class="section-note">Ulangi hingga konvergen:</p>
+
+            <div class="step-card active" id="assignCard">
+              <h3>Find closest centroid</h3>
+              <p>Cari centroid terdekat untuk setiap titik, lalu warnai titik sesuai kelompoknya.</p>
+            </div>
+
+            <div class="step-card" id="updateCard">
+              <h3>Update centroid</h3>
+              <p>Pindahkan setiap centroid ke rata-rata posisi titik dalam kelompoknya.</p>
+            </div>
+
+            <div class="action-row">
+              <button class="primary-button" id="nextStepButton" type="button">Find closest centroid</button>
+              <button class="ghost-button" id="runButton" type="button">Auto run</button>
+              <button class="ghost-button" id="resetButton" type="button">Reset</button>
+            </div>
+          </section>
+
+          <section class="data-panel">
+            <h2>Data</h2>
+
+            <label class="range-field">
+              <span>Clustered points</span>
+              <input id="spreadSlider" type="range" min="0" max="100" value="22" />
+              <span>Random</span>
+            </label>
+
+            <label class="number-field">
+              <span>Number of clusters</span>
+              <input id="clusterInput" type="number" min="1" max="8" value="3" />
+            </label>
+
+            <label class="number-field">
+              <span>Number of centroids</span>
+              <input id="centroidInput" type="number" min="1" max="8" value="3" />
+            </label>
+
+            <div class="button-grid">
+              <button class="danger-button" id="newPointsButton" type="button">New points</button>
+              <button class="danger-button" id="newCentroidsButton" type="button">New centroids</button>
+            </div>
+          </section>
+
+          <section class="tips-panel" aria-label="Petunjuk interaksi">
+            <h2>Interaksi</h2>
+            <p>Klik area plot untuk menambah titik baru. Geser centroid dengan drag untuk mencoba kondisi awal yang berbeda.</p>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

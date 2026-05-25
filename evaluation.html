@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Evaluasi K-Means Clustering</title>
+    <link rel="stylesheet" href="styles.css?v=evaluation-detail" />
+  </head>
+  <body>
+    <main class="page-shell evaluation-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Ilustrasi, Perhitungan, Playground</p>
+          <h1>Evaluasi Clustering</h1>
+        </div>
+        <nav class="page-actions" aria-label="Navigasi halaman">
+          <a class="nav-button" href="index.html">Playground utama</a>
+          <a class="nav-button" href="calculation.html">Perhitungan K-Means</a>
+          <div class="status-pill" id="evaluationStatus">K = 3</div>
+        </nav>
+      </header>
+
+      <section class="evaluation-intro" aria-label="Teknik evaluasi clustering">
+        <div>
+          <h2>Internal Evaluation</h2>
+          <p>Mengukur kualitas cluster hanya dari data dan cluster hasil algoritma.</p>
+          <div class="formula-stack">
+            <div>
+              <strong>Sum Square Error</strong>
+              <span>
+                SSE =
+                &sum;<sub>j=1..K</sub>
+                &sum;<sub>x<sub>i</sub> in C<sub>j</sub></sub>
+                ||c<sub>j</sub> - x<sub>i</sub>||<sup>2</sup>
+              </span>
+            </div>
+            <div>
+              <strong>Silhouette coefficient</strong>
+              <span>
+                s(i) = (b(i) - a(i)) / max(a(i), b(i)).
+                a(i) adalah jarak rata-rata ke cluster sendiri, b(i) adalah jarak rata-rata
+                terkecil ke cluster lain.
+              </span>
+            </div>
+            <div>
+              <strong>Davies-Bouldin & Dunn</strong>
+              <span>
+                DB rendah lebih baik. Dunn tinggi lebih baik karena jarak antar cluster besar
+                dan diameter cluster kecil.
+              </span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h2>External Evaluation</h2>
+          <p>Membandingkan cluster prediksi dengan label asli yang diketahui.</p>
+          <div class="formula-stack">
+            <div>
+              <strong>Purity</strong>
+              <span>Purity = (1 / N) &sum;<sub>cluster</sub> mayoritas label asli di cluster.</span>
+            </div>
+            <div>
+              <strong>Mutual Information</strong>
+              <span>
+                MI mengukur seberapa banyak informasi label asli dijelaskan oleh cluster prediksi.
+                NMI menormalisasi MI ke rentang 0 sampai 1.
+              </span>
+            </div>
+            <div>
+              <strong>F-Measure & Jaccard</strong>
+              <span>
+                Dihitung dari pasangan titik: TP, FP, FN. F-Measure menyeimbangkan precision
+                dan recall; Jaccard = TP / (TP + FP + FN).
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="evaluation-workspace" aria-label="Playground evaluasi clustering">
+        <div class="plot-column">
+          <div class="canvas-frame evaluation-canvas-frame">
+            <canvas id="evaluationCanvas" width="920" height="720" aria-label="Plot evaluasi clustering"></canvas>
+          </div>
+          <div class="plot-legend" aria-label="Legenda evaluasi">
+            <span><i class="legend-dot point-dot"></i> Isi warna = cluster prediksi</span>
+            <span><i class="truth-ring truth-a"></i> Ring = label asli</span>
+            <span><i class="legend-triangle current-centroid"></i> Centroid</span>
+            <span><i class="legend-line silhouette-line"></i> Garis titik terpilih untuk a(i) dan b(i)</span>
+          </div>
+        </div>
+
+        <aside class="side-panel evaluation-side">
+          <section class="data-panel">
+            <h2>Kontrol</h2>
+            <label class="number-field compact-field">
+              <span>K prediksi</span>
+              <input id="evalKInput" type="number" min="2" max="5" value="3" />
+            </label>
+            <label class="number-field compact-field">
+              <span>Jumlah titik</span>
+              <input id="evalPointInput" type="number" min="18" max="60" value="36" />
+            </label>
+            <label class="range-field evaluation-range">
+              <span>Terpisah</span>
+              <input id="overlapSlider" type="range" min="0" max="100" value="30" />
+              <span>Overlap</span>
+            </label>
+            <label class="range-field evaluation-range">
+              <span>Stabil</span>
+              <input id="noiseSlider" type="range" min="0" max="45" value="5" />
+              <span>Noise cluster</span>
+            </label>
+            <div class="button-grid">
+              <button class="primary-button" id="runEvaluationButton" type="button">Run K-Means & Evaluate</button>
+              <button class="ghost-button" id="stepEvaluationButton" type="button">Step K-Means</button>
+              <button class="danger-button" id="newEvaluationDataButton" type="button">New data</button>
+            </div>
+          </section>
+
+          <section class="tips-panel selected-point-panel" aria-label="Perhitungan titik terpilih">
+            <h2>Titik Terpilih</h2>
+            <p id="selectedPointSummary">Klik titik pada plot untuk melihat a(i), b(i), dan s(i).</p>
+            <div class="selected-values">
+              <div><span>a(i)</span><strong id="selectedA">-</strong></div>
+              <div><span>b(i)</span><strong id="selectedB">-</strong></div>
+              <div><span>s(i)</span><strong id="selectedS">-</strong></div>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      <section class="metric-dashboard" aria-label="Dashboard metrik evaluasi">
+        <div class="metric-card">
+          <span>SSE</span>
+          <strong id="metricSse">-</strong>
+          <p>Lebih rendah lebih rapat.</p>
+        </div>
+        <div class="metric-card">
+          <span>Silhouette avg</span>
+          <strong id="metricSilhouette">-</strong>
+          <p>Mendekati 1 lebih baik.</p>
+        </div>
+        <div class="metric-card">
+          <span>Davies-Bouldin</span>
+          <strong id="metricDb">-</strong>
+          <p>Lebih rendah lebih baik.</p>
+        </div>
+        <div class="metric-card">
+          <span>Dunn Index</span>
+          <strong id="metricDunn">-</strong>
+          <p>Lebih tinggi lebih baik.</p>
+        </div>
+        <div class="metric-card">
+          <span>Purity</span>
+          <strong id="metricPurity">-</strong>
+          <p>Mayoritas label asli per cluster.</p>
+        </div>
+        <div class="metric-card">
+          <span>NMI</span>
+          <strong id="metricNmi">-</strong>
+          <p>Kesamaan label dan cluster.</p>
+        </div>
+        <div class="metric-card">
+          <span>F-Measure</span>
+          <strong id="metricFMeasure">-</strong>
+          <p>Pair precision dan recall.</p>
+        </div>
+        <div class="metric-card">
+          <span>Jaccard</span>
+          <strong id="metricJaccard">-</strong>
+          <p>TP / (TP + FP + FN).</p>
+        </div>
+      </section>
+
+      <section class="calculation-detail-grid" aria-label="Cara perhitungan metrik evaluasi">
+        <article class="detail-panel">
+          <div class="detail-heading">
+            <span>Internal 1</span>
+            <h2>SSE Step-by-Step</h2>
+          </div>
+          <p id="sseFormulaDetail" class="detail-formula">-</p>
+          <div class="table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>Cluster</th>
+                  <th>Centroid</th>
+                  <th>Rumus titik</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody id="sseBreakdownBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="detail-panel">
+          <div class="detail-heading">
+            <span>Internal 2</span>
+            <h2>Silhouette Titik Terpilih</h2>
+          </div>
+          <p id="silhouetteFormulaDetail" class="detail-formula">-</p>
+          <div class="table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>Bagian</th>
+                  <th>Isi perhitungan</th>
+                  <th>Hasil</th>
+                </tr>
+              </thead>
+              <tbody id="silhouetteDetailBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="detail-panel">
+          <div class="detail-heading">
+            <span>Internal 3</span>
+            <h2>Davies-Bouldin & Dunn</h2>
+          </div>
+          <p id="dbDunnFormulaDetail" class="detail-formula">-</p>
+          <div class="table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>Pasangan</th>
+                  <th>M<sub>jk</sub></th>
+                  <th>(S<sub>j</sub> + S<sub>k</sub>) / M<sub>jk</sub></th>
+                  <th>Dunn kandidat</th>
+                </tr>
+              </thead>
+              <tbody id="dbDunnDetailBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="detail-panel">
+          <div class="detail-heading">
+            <span>External</span>
+            <h2>Purity, F, Jaccard, NMI</h2>
+          </div>
+          <p id="externalFormulaDetail" class="detail-formula">-</p>
+          <div class="table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>Metrik</th>
+                  <th>Substitusi angka</th>
+                  <th>Hasil</th>
+                </tr>
+              </thead>
+              <tbody id="externalFormulaBody"></tbody>
+            </table>
+          </div>
+          <div class="table-wrap secondary-detail-table">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>MI term</th>
+                  <th>Perhitungan</th>
+                  <th>Nilai</th>
+                </tr>
+              </thead>
+              <tbody id="miTermBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="tables-grid evaluation-tables" aria-label="Tabel perhitungan evaluasi">
+        <div class="table-panel">
+          <div class="table-heading">
+            <h2>Perhitungan Internal</h2>
+            <p>SSE per titik, a(i), b(i), dan silhouette.</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Point</th>
+                  <th>True</th>
+                  <th>Cluster</th>
+                  <th>||x-c||<sup>2</sup></th>
+                  <th>a(i)</th>
+                  <th>b(i)</th>
+                  <th>s(i)</th>
+                </tr>
+              </thead>
+              <tbody id="internalTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="table-panel">
+          <div class="table-heading">
+            <h2>Ringkasan Cluster</h2>
+            <p>Komponen untuk SSE, DB index, dan Dunn index.</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cluster</th>
+                  <th>n</th>
+                  <th>SSE</th>
+                  <th>S<sub>j</sub></th>
+                  <th>Diameter</th>
+                  <th>DB R<sub>j</sub></th>
+                </tr>
+              </thead>
+              <tbody id="clusterSummaryBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="tables-grid evaluation-tables">
+        <div class="table-panel">
+          <div class="table-heading">
+            <h2>Confusion Matrix</h2>
+            <p>Baris adalah cluster prediksi, kolom adalah label asli.</p>
+          </div>
+          <div class="table-wrap">
+            <table class="compact-table">
+              <thead id="confusionHead"></thead>
+              <tbody id="confusionBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="table-panel">
+          <div class="table-heading">
+            <h2>Pair Counting & Mutual Information</h2>
+            <p>Dasar perhitungan F-Measure, Jaccard, MI, dan NMI.</p>
+          </div>
+          <div class="table-wrap">
+            <table class="compact-table">
+              <tbody id="externalSummaryBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="evaluation.js?v=evaluation-detail"></script>
+  </body>
+</html>

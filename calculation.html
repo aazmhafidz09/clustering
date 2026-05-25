@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Perhitungan K-Means</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page-shell calc-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Perhitungan Langkah Demi Langkah</p>
+          <h1>K-Means Algorithm</h1>
+        </div>
+        <nav class="page-actions" aria-label="Navigasi halaman">
+          <a class="nav-button" href="index.html">Playground utama</a>
+          <a class="nav-button" href="evaluation.html">Evaluasi cluster</a>
+          <div class="status-pill" id="calcIterationStatus">Iterasi 0</div>
+        </nav>
+      </header>
+
+      <section class="algorithm-paper" aria-label="Basic K-means algorithm">
+        <div class="paper-title">Algorithm 8.1 Basic K-means algorithm.</div>
+        <ol>
+          <li id="algoLine1">Select K points as initial centroids.</li>
+          <li id="algoLine2">repeat</li>
+          <li id="algoLine3">Form K clusters by assigning each point to its closest centroid.</li>
+          <li id="algoLine4">Recompute the centroid of each cluster.</li>
+          <li id="algoLine5">until Centroids do not change.</li>
+        </ol>
+      </section>
+
+      <section class="formula-band" aria-label="Catatan formula">
+        <div>
+          <strong>Line 1</strong>
+          <span>Centroid awal diambil dari K titik acak pada data input.</span>
+        </div>
+        <div>
+          <strong>Line 3</strong>
+          <span>
+            Jarak Euclidean:
+            d(x, c) = sqrt((x<sub>1</sub> - c<sub>1</sub>)<sup>2</sup> +
+            (x<sub>2</sub> - c<sub>2</sub>)<sup>2</sup>)
+          </span>
+        </div>
+        <div>
+          <strong>Line 4</strong>
+          <span>
+            c<sub>j</sub> =
+            <span class="fraction"><span>1</span><span>|C<sub>j</sub>|</span></span>
+            &sum;<sub>i in C<sub>j</sub></sub> x<sub>i</sub>
+          </span>
+        </div>
+      </section>
+
+      <section class="repeat-visual" aria-label="Visualisasi repeat K-Means">
+        <div class="repeat-heading">
+          <div>
+            <h2>Repeat per Iterasi</h2>
+            <p>Line 3 dan Line 4 terjadi berulang sampai perubahan centroid = 0.</p>
+          </div>
+          <div class="repeat-summary">
+            <div>
+              <span>Repeat ke</span>
+              <strong id="repeatIteration">0</strong>
+            </div>
+            <div>
+              <span>Perubahan terbaru</span>
+              <strong id="latestMovement">belum ada</strong>
+            </div>
+            <div>
+              <span>Keputusan</span>
+              <strong id="repeatDecision">mulai Line 1</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="repeat-flow" aria-label="Alur repeat">
+          <div class="repeat-node" id="repeatNode2">
+            <span>Line 2</span>
+            <strong>repeat</strong>
+          </div>
+          <div class="repeat-connector">-></div>
+          <div class="repeat-node" id="repeatNode3">
+            <span>Line 3</span>
+            <strong>Assign cluster</strong>
+          </div>
+          <div class="repeat-connector">-></div>
+          <div class="repeat-node" id="repeatNode4">
+            <span>Line 4</span>
+            <strong>Recompute centroid</strong>
+          </div>
+          <div class="repeat-connector">-></div>
+          <div class="repeat-node" id="repeatNode5">
+            <span>Line 5</span>
+            <strong>Centroid berubah?</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="calculation-workspace" aria-label="Playground perhitungan K-Means">
+        <div class="plot-column">
+          <div class="canvas-frame calculation-canvas-frame">
+            <canvas id="calcCanvas" width="920" height="720" aria-label="Plot perhitungan K-Means"></canvas>
+          </div>
+          <div class="plot-legend" aria-label="Legenda plot">
+            <span><i class="legend-dot point-dot"></i> Titik data</span>
+            <span><i class="legend-triangle current-centroid"></i> Centroid sekarang</span>
+            <span><i class="legend-triangle previous-centroid"></i> Centroid sebelum recompute</span>
+            <span><i class="legend-line"></i> Arah perubahan centroid</span>
+          </div>
+          <div class="metric-grid">
+            <div>
+              <span>SSE</span>
+              <strong id="sseValue">belum dihitung</strong>
+            </div>
+            <div>
+              <span>Perubahan centroid terbesar</span>
+              <strong id="shiftValue">belum dihitung</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong id="convergenceStatus">Belum mulai</strong>
+            </div>
+          </div>
+        </div>
+
+        <aside class="side-panel calculation-side">
+          <section class="data-panel">
+            <h2>Kontrol</h2>
+            <label class="number-field compact-field">
+              <span>K cluster</span>
+              <input id="kInput" type="number" min="2" max="4" value="3" />
+            </label>
+            <label class="number-field compact-field">
+              <span>Jumlah titik N</span>
+              <input id="pointInput" type="number" min="8" max="16" value="12" />
+            </label>
+            <div class="button-grid">
+              <button class="primary-button" id="initializeButton" type="button">1. Initial centroids</button>
+              <button class="primary-button" id="assignCalcButton" type="button">3. Assign clusters</button>
+              <button class="primary-button" id="recomputeButton" type="button">4. Recompute centroid</button>
+              <button class="ghost-button" id="runUntilButton" type="button">Run until unchanged</button>
+              <button class="danger-button" id="newDataButton" type="button">New data</button>
+            </div>
+          </section>
+
+          <section class="tips-panel" aria-label="Penjelasan langkah aktif">
+            <h2>Langkah aktif</h2>
+            <p id="activeExplanation">
+              Mulai dari Line 1: pilih K titik data sebagai centroid awal.
+            </p>
+          </section>
+        </aside>
+      </section>
+
+      <section class="tables-grid" aria-label="Tabel perhitungan K-Means">
+        <div class="table-panel">
+          <div class="table-heading">
+            <h2>Data, Jarak, dan Cluster</h2>
+            <p>Setiap titik masuk ke cluster dengan jarak Euclidean terkecil.</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead id="distanceTableHead"></thead>
+              <tbody id="distanceTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="table-panel">
+          <div class="table-heading">
+            <h2>Recompute Centroid</h2>
+            <p>Centroid baru adalah rata-rata koordinat semua titik di cluster tersebut.</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cluster</th>
+                  <th>|C<sub>j</sub>|</th>
+                  <th>&sum;x</th>
+                  <th>&sum;y</th>
+                  <th>c<sub>j</sub> baru</th>
+                  <th>Shift</th>
+                </tr>
+              </thead>
+              <tbody id="centroidTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-panel history-panel" aria-label="Riwayat repeat per iterasi">
+        <div class="table-heading">
+          <h2>Riwayat Repeat Per Iterasi</h2>
+          <p>
+            Setiap baris menyimpan hasil Line 3 dan Line 4, sehingga perubahan dari
+            iterasi ke iterasi bisa dibandingkan.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Iterasi</th>
+                <th>Line 3: anggota cluster</th>
+                <th>SSE Line 3</th>
+                <th>Line 4: centroid lama -> baru</th>
+                <th>Max shift</th>
+                <th>Keputusan repeat</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="calculation.js"></script>
+  </body>
+</html>
